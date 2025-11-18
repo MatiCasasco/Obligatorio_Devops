@@ -7,9 +7,35 @@ archivo=""
 contador=0
 modi=0
 
+# Función para mostrar datos del usuario
+mostrar_datos() {
+    local comentario="$1"
+    local home="$2"
+    local crear="$3"
+    local shell="$4"
+    local home_vacio="$5"
+    
+    local mostrar_comentario="$comentario"
+    local mostrar_home="$home"
+    local mostrar_shell="$shell"
+    local mostrar_crear="$crear"
+    
+    if [ -z "$comentario" ]; then mostrar_comentario="<valor por defecto>"; fi
+    if [ -z "$home" ] || [ "$home_vacio" -eq 1 ]; then mostrar_home="<valor por defecto>"; fi
+    if [ -z "$shell" ]; then mostrar_shell="<valor por defecto>"; fi
+    if [ -z "$crear" ]; then mostrar_crear="<valor por defecto>"; fi
+    
+    echo -e "\tComentario: $mostrar_comentario"
+    echo -e "\tDir home: $mostrar_home"
+    echo -e "\tAsegurado existencia de directorio home: $mostrar_crear"
+    echo -e "\tShell por defecto: $mostrar_shell"
+    echo "-------------------------------------------------------------"
+    echo ""
+}
+
 while [ $# -gt 0 ]; do
 	case "$1" in
-	    -i)
+	-i)
 		flag_i=true
 		;;
         -c)
@@ -72,20 +98,9 @@ while read -r linea; do
 		echo "El usuario $usuario ya EXISTIA. Se modificaron las parametros adicionales."
 		useradd -c "$comentario" -d "$home" -s "$shell" -m "$usuario" &>/dev/null
 		echo "$password" | passwd --stdin "$usuario" &>/dev/null
-        	mostrar_comentario=$comentario
-                mostrar_home=$home
-          	            mostrar_shell=$shell
-                            mostrar_crear=$crear
-            		    if [ -z "$comentario" ]; then mostrar_comentario="<valor por defecto>"; fi
-                            if [ -z "$home" ]; then mostrar_home="<valor por defecto>"; fi
-                            if [ -z "$shell" ]; then mostrar_shell="<valor por defecto>"; fi
-                            if [ -z "$crear" ]; then mostrar_crear="<valor por defecto>"; fi
-           		    echo -e "\tComentario: $mostrar_comentario"
-           		    echo -e "\tDir home: $mostrar_home"
-           		    echo -e "\tAsegurado existencia de directorio home: $mostrar_crear"
-           		    echo -e "\tShell por defecto: $mostrar_shell"
-			    echo "-------------------------------------------------------------"
-			    echo ""
+		if [ "$flag_i" = true ];then
+		mostrar_datos "$comentario" "$home" "$crear" "$shell" 
+		fi
 		modi=$((modi+1))
 	else
 		home_vacio=0
@@ -94,22 +109,10 @@ while read -r linea; do
 			echo "$password" | passwd --stdin "$usuario" &>/dev/null
 			if grep -q "^$usuario:" /etc/passwd; then
 			    echo "Usuario $usuario creado correctamente."
-        	            mostrar_comentario=$comentario
-            		    mostrar_home=$home
-          	            mostrar_shell=$shell
-                            mostrar_crear=$crear
-            		    if [ -z "$comentario" ]; then mostrar_comentario="<valor por defecto>"; fi
-                            if [ -z "$home" ]; then mostrar_home="<valor por defecto>"; fi
-                            if [ -z "$shell" ]; then mostrar_shell="<valor por defecto>"; fi
-                            if [ -z "$crear" ]; then mostrar_crear="<valor por defecto>"; fi
-
-           		    echo -e "Usuario $usuario creado con éxito con datos indicados:"
-           		    echo -e "\tComentario: $mostrar_comentario"
-           		    echo -e "\tDir home: $mostrar_home"
-           		    echo -e "\tAsegurado existencia de directorio home: $mostrar_crear"
-           		    echo -e "\tShell por defecto: $mostrar_shell"
-			    echo "-------------------------------------------------------------"
-			    echo ""
+			    if [ "$flag_i" = true ];then
+			    echo -e "Usuario $usuario creado con éxito con datos indicados:"
+			    mostrar_datos "$comentario" "$home" "$crear" "$shell"
+			    fi
 			    contador=$((contador+1))
 			else
 			    echo "ATENCION: el usuario $usuario no pudo ser creado"
@@ -123,23 +126,9 @@ while read -r linea; do
 			echo "$password" | passwd --stdin "$usuario" &>/dev/null
 			if grep -q "^$usuario:" /etc/passwd; then
 				echo "Usuario $usuario se ha creado correctamente."
-        	                mostrar_comentario=$comentario
-        	                mostrar_home=$home
-          	                mostrar_shell=$shell
-                                mostrar_crear=$crear
-            		        if [ -z "$comentario" ]; then mostrar_comentario="<valor por defecto>"; fi
-                            	if [ -z "$home" ] || [ "$home_vacio" -eq 1 ]; then mostrar_home="<valor por defecto>"; fi
-                        	if [ -z "$shell" ]; then mostrar_shell="<valor por defecto>"; fi
-                                if [ -z "$crear" ]; then mostrar_crear="<valor por defecto>"; fi
-
-           		       echo -e "Usuario $usuario creado con éxito con datos indicados:"
-           		       echo -e "\tComentario: $mostrar_comentario"
-           		       echo -e "\tDir home: $mostrar_home"
-           		       echo -e "\tAsegurado existencia de directorio home: $mostrar_crear"
-           		       echo -e "\tShell por defecto: $mostrar_shell"
-			      echo "-------------------------------------------------------------"
-			      echo ""
-			       contador=$((contador+1))
+				echo -e "Usuario $usuario creado con éxito con datos indicados:"
+				mostrar_datos "$comentario" "$home" "$crear" "$shell" "$home_vacio"
+				contador=$((contador+1))
 			else
 		   		 echo "ATENCION: el usuario $usuario no pudo ser creado" >&2
 			fi
@@ -155,5 +144,3 @@ fi
 if [ "$contador" -ne 0 ];then
 	echo "Se han creado $contador usuarios con exito"
 fi
-
-
