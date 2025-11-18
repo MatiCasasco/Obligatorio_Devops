@@ -79,11 +79,6 @@ Ejemplo de ejecución:
 python3 deploy_rrhh.py
 ```
 
-Medidas de seguridad implementadas:
-- Uso de credenciales seguras.
-- Configuración de permisos mínimos.
-- Logs trazables para auditoría.
-
 ## Estructura del Repositorio
 ```
 ├── ejercicio_bash
@@ -98,4 +93,4 @@ Medidas de seguridad implementadas:
 
 ## Autores
 - Mariana Varietti – 288481
-- Matias Casasco – 
+- Matias Casasco – 278023
