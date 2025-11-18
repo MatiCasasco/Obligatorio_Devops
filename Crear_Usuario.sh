@@ -9,11 +9,12 @@ modi=0
 
 # Función para mostrar datos del usuario
 mostrar_datos() {
-    local comentario="$1"
-    local home="$2"
-    local crear="$3"
-    local shell="$4"
-    local home_vacio="$5"
+    local usuario="$1"
+    local comentario="$2"
+    local home="$3"
+    local crear="$4"
+    local shell="$5"
+    local home_vacio="${6:-0}"  # Valor por defecto 0 si no se pasa
     
     local mostrar_comentario="$comentario"
     local mostrar_home="$home"
@@ -25,6 +26,7 @@ mostrar_datos() {
     if [ -z "$shell" ]; then mostrar_shell="<valor por defecto>"; fi
     if [ -z "$crear" ]; then mostrar_crear="<valor por defecto>"; fi
     
+    echo -e "\tUsuario: $usuario"
     echo -e "\tComentario: $mostrar_comentario"
     echo -e "\tDir home: $mostrar_home"
     echo -e "\tAsegurado existencia de directorio home: $mostrar_crear"
@@ -95,39 +97,62 @@ while read -r linea; do
 	IFS=":" read -r usuario comentario home crear shell <<< "$linea"
 	
 	if grep -q "^$usuario:" /etc/passwd; then
-		echo "El usuario $usuario ya EXISTIA. Se modificaron las parametros adicionales."
-		useradd -c "$comentario" -d "$home" -s "$shell" -m "$usuario" &>/dev/null
-		echo "$password" | passwd --stdin "$usuario" &>/dev/null
-		if [ "$flag_i" = true ];then
-		mostrar_datos "$comentario" "$home" "$crear" "$shell" 
+		echo "El usuario $usuario ya EXISTE. Se modificaron las parametros adicionales."
+		
+		# Modificar solo los campos que tienen valor usando usermod
+		if [ -n "$comentario" ]; then
+			usermod -c "$comentario" "$usuario" &>/dev/null
+		fi
+		
+		if [ -n "$home" ]; then
+			usermod -d "$home" "$usuario" &>/dev/null
+		fi
+		
+		if [ -n "$shell" ]; then
+			usermod -s "$shell" "$usuario" &>/dev/null
+		fi
+		
+		
+		
+		if [ "$flag_i" = true ]; then
+			mostrar_datos "$usuario" "$comentario" "$home" "$crear" "$shell" 
+		fi
+		if [ "$flag_c" = true ] && [ -n "$password" ]; then
+			echo "$password" | passwd --stdin "$usuario" &>/dev/null
 		fi
 		modi=$((modi+1))
 	else
 		home_vacio=0
 		if [ "$crear" = "SI" ];then
 			useradd -c "$comentario" -d "$home" -s "$shell" -m "$usuario"
-			echo "$password" | passwd --stdin "$usuario" &>/dev/null
+			if [ "$flag_c" = true ] && [ -n "$password" ];then
+				echo "$password" | passwd --stdin "$usuario" &>/dev/null
+			fi
 			if grep -q "^$usuario:" /etc/passwd; then
 			    echo "Usuario $usuario creado correctamente."
 			    if [ "$flag_i" = true ];then
-			    echo -e "Usuario $usuario creado con éxito con datos indicados:"
-			    mostrar_datos "$comentario" "$home" "$crear" "$shell"
+				echo -e "Usuario $usuario creado con éxito con datos indicados:"
+				mostrar_datos "$usuario" "$comentario" "$home" "$crear" "$shell"
 			    fi
 			    contador=$((contador+1))
 			else
 			    echo "ATENCION: el usuario $usuario no pudo ser creado"
 			fi
 		elif [ "$crear" = "NO" ] || [ -z "$crear" ];then
-			if [ -z "$home" ]; then 
+			if [ -z "$home" ]; then
 				home="/home/$usuario"
 				home_vacio=1
 			fi
 			useradd -c "$comentario" -d "$home" -s "$shell" -M "$usuario"
-			echo "$password" | passwd --stdin "$usuario" &>/dev/null
+			if [ "$flag_c" = true ] && [ -n "$password" ];then
+				echo "$password" | passwd --stdin "$usuario" &>/dev/null
+			fi
 			if grep -q "^$usuario:" /etc/passwd; then
+				if [ "$flag_i" = true ];then
 				echo "Usuario $usuario se ha creado correctamente."
 				echo -e "Usuario $usuario creado con éxito con datos indicados:"
-				mostrar_datos "$comentario" "$home" "$crear" "$shell" "$home_vacio"
+				mostrar_datos "$usuario" "$comentario" "$home" "$crear" "$shell" "$home_vacio"
+				fi
 				contador=$((contador+1))
 			else
 		   		 echo "ATENCION: el usuario $usuario no pudo ser creado" >&2
