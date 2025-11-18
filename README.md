@@ -1,5 +1,21 @@
 # Obligatorio Programación para DevOps 2025
 
+## Situación del Obligatorio
+El Banco Riendo está en proceso de adoptar un modelo de nube híbrida para cumplir con los requerimientos del negocio de forma acelerada. 
+Para ello, el equipo de DevOps delega las siguientes tareas:
+
+1. Crear un script en Bash que permita la creación masiva de usuarios a partir de un archivo, definiendo shell por defecto, directorio home, comentario y opción para crear el directorio home si no existe.
+2. Crear un script en Python que automatice el despliegue seguro de la aplicación de Recursos Humanos, que contiene información sensible como nombres, emails y salarios.
+
+Todos los cambios deben ser trazables mediante un repositorio en GitHub y documentados en este README.
+
+## Objetivos del Proyecto
+- Automatizar la creación de usuarios en Linux mediante un script en Bash.
+- Implementar un script en Python para el despliegue seguro de una aplicación crítica.
+- Garantizar la seguridad y protección de datos sensibles.
+- Mantener trazabilidad y buenas prácticas de control de versiones en GitHub.
+- Documentar claramente el proyecto para facilitar su uso y mantenimiento.
+
 ## Descripción del Proyecto
 Este proyecto forma parte del curso Programación para DevOps y tiene como objetivo automatizar tareas para el equipo DevOps.   
 Incluye dos componentes principales:
@@ -75,6 +91,7 @@ Medidas de seguridad implementadas:
   ├── usuario_lista.txt
 ├── ejercicio_python
   ├── deploy_rrhh.py
+├── IMAGES
 ├── README.md
 ├── LICENSE
 ```
