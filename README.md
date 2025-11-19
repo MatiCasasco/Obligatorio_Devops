@@ -94,3 +94,16 @@ python3 deploy_rrhh.py
 ## Autores
 - Mariana Varietti – 288481
 - Matias Casasco – 278023
+
+# Cosas para agregar con el fin de que funcione el script de python
+## Configurar AWS CLI
+
+```
+aws configure
+```
+
+## Instalar boto3
+
+```
+pip install boto3 --break-system-packages # Esto es para evitar errores con los ambientes de python
+```
