@@ -19,7 +19,7 @@ ec2 = boto3.client('ec2')
 rds = boto3.client('rds')
 s3 = boto3.client('s3')
 
-# 2. SUBIR ARCHIVOS WEB A S3
+# 2. SUBIR ARCHIVOS DE LA WEB A S3
 print("\nSubiendo archivos web a S3...")
 if not os.path.isdir(LOCAL_PATH):
     print(f"La carpeta NO existe: {LOCAL_PATH}")
@@ -41,7 +41,7 @@ for folder, subs, files in os.walk(LOCAL_PATH):
         s3.upload_file(local_file, BUCKET_NAME, s3_path)
 print("✓ Archivos web subidos a S3 correctamente.\n")
 
-# 3. CREAR SECURITY GROUPS
+# 3. CREAR LOS SECURITY GROUPS
 print("Creando Security Group para EC2...")
 sg_web_name = 'rrhh-web-sg'
 sg_web_id = None
