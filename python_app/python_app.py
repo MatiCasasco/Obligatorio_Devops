@@ -6,11 +6,11 @@ from botocore.exceptions import ClientError
 # 1. CONFIGURACIÓN
 BUCKET_NAME = 'rrhh-obligatorio-web'
 LOCAL_PATH = '/home/matiascasasco/python_obligatorio/Archivos_de_Pagina_Web'
-S3_PREFIX = 'webapp/'  
-DB_NAME = 'demo_db'
+S3_PREFIX = 'webapp/'
+DB_NAME = 'rrhh'
 DB_USERNAME = 'admin'
 DB_PASSWORD = 'RrhhSegura2025!'
-DB_DATABASE = 'rrhh'
+DB_DATABASE = 'demo_db'
 APP_USER = 'admin'
 APP_PASS = 'admin123'
 IMAGE_ID = 'ami-0fa3fe0fa7920f68e'
@@ -197,5 +197,5 @@ instance_info = ec2.describe_instances(InstanceIds=[instance_id])
 public_ip = instance_info['Reservations'][0]['Instances'][0].get('PublicIpAddress')
 
 
-print(f"Acceso web: http://{public_ip}.login.html")
+print(f"Acceso web: http://{public_ip}/login.php")
 print("====================================")
