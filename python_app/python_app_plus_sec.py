@@ -3,82 +3,89 @@ import os
 import time
 from botocore.exceptions import ClientError
 
-# 1. CONFIGURACIÓN
-BUCKET_NAME = 'rrhh-obligatorio-web'
-LOCAL_PATH = './Archivos_de_Pagina_Web'
-S3_PREFIX = 'webapp/'
-DB_NAME = 'rrhh'
-##DB_USERNAME = 'admin'
-##DB_PASSWORD = 'RrhhSegura2025!'
-DB_DATABASE = 'demo_db'
-##APP_USER = 'admin'
-##APP_PASS = 'admin123'
-IMAGE_ID = 'ami-0fa3fe0fa7920f68e'
+# ==============================
+# 1. CONFIGURACIÓN INICIAL
+# ==============================
 
-ec2 = boto3.client('ec2')
-rds = boto3.client('rds')
-s3 = boto3.client('s3')
-secrets = boto3.client('secretsmanager')
+NOMBRE_BUCKET = 'rrhh-obligatorio-web'
 
-# Secrets (guardamos valores por defecto en Secrets Manager)
-DB_SECRET_NAME      = f"{PROJECT}/db/master"         # contiene {"username": "...", "password": "..."}
-APP_SECRET_NAME     = f"{PROJECT}/app/credentials"   # contiene {"APP_USER": "admin", "APP_PASS": "admin123"}
+RUTA_LOCAL = './Archivos_de_Pagina_Web'
 
+PREFIJO_S3 = 'webapp/'
 
+ID_INSTANCIA_BD = 'rrhhapp'
+
+# Credenciales de la base de datos (usuario y contraseña leída de archivo)
+USUARIO_BD = 'admin'
+CONTRASENA_BD = open("./password_db.txt", "r").read().strip()
+
+NOMBRE_BD = 'demo_db'
+
+# Credenciales de la aplicación (usuario fijo, contraseña desde archivo)
+USUARIO_APP = 'admin'
+CONTRASENA_APP = open("./password_app.txt", "r").read().strip()
+
+# AMI que se usará para la instancia EC2
+ID_IMAGEN = 'ami-0fa3fe0fa7920f68e'
+
+# Clientes de AWS (EC2, RDS y S3) usando credenciales/configuración del entorno
+cliente_ec2 = boto3.client('ec2')
+cliente_rds = boto3.client('rds')
+cliente_s3 = boto3.client('s3')
+
+# ==============================
 # 2. SUBIR ARCHIVOS WEB A S3
+# ==============================
+
 print("\nSubiendo archivos web a S3...")
-if not os.path.isdir(LOCAL_PATH):
-    print(f"La carpeta NO existe: {LOCAL_PATH}")
+print("====================================")
+
+# Verificar que la carpeta local existe
+if not os.path.isdir(RUTA_LOCAL):
+    print(f"La carpeta NO existe: {RUTA_LOCAL}")
     exit(1)
 
+# Crear el bucket S3 (si no existe ya)
 try:
-    s3.create_bucket(Bucket=BUCKET_NAME)
-    print(f"bucket creado: {BUCKET_NAME}")
+    cliente_s3.create_bucket(Bucket=NOMBRE_BUCKET)
+    print(f"Bucket creado: {NOMBRE_BUCKET}")
+    print("====================================")
 except Exception as e:
+    # Si el bucket ya existe en tu cuenta, continuar
     if "BucketAlreadyOwnedByYou" in str(e):
-        print("ℹ bucket ya existe.")
+        print("ℹ Bucket ya existe.")
 
-for folder, subs, files in os.walk(LOCAL_PATH):
-    for filename in files:
-        local_file = os.path.join(folder, filename)
-        s3_key = os.path.relpath(local_file, LOCAL_PATH).replace("\\", "/")
-        s3_path = f"{S3_PREFIX}{s3_key}"
-        print(f"Subiendo: {local_file} -> s3://{BUCKET_NAME}/{s3_path}")
-        s3.upload_file(local_file, BUCKET_NAME, s3_path)
+# Recorrer recursivamente la carpeta local y subir todos los archivos al bucket
+for carpeta, subcarpetas, archivos in os.walk(RUTA_LOCAL):
+    for nombre_archivo in archivos:
+        ruta_local_archivo = os.path.join(carpeta, nombre_archivo)
+        # Clave S3 relativa a la carpeta base, con barras normalizadas
+        clave_s3 = os.path.relpath(ruta_local_archivo, RUTA_LOCAL).replace("\\", "/")
+        ruta_s3 = f"{PREFIJO_S3}{clave_s3}"
+        print(f"Subiendo: {ruta_local_archivo} -> s3://{NOMBRE_BUCKET}/{ruta_s3}")
+        cliente_s3.upload_file(ruta_local_archivo, NOMBRE_BUCKET, ruta_s3)
+print("====================================")
 print("✓ Archivos web subidos a S3 correctamente.\n")
 
-# Secrets (DB y APP)
-def upsert_secret(name, payload):
-    try:
-        resp = secrets.create_secret(Name=name, SecretString=json.dumps(payload))
-        return resp["ARN"]
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "ResourceExistsException":
-            secrets.put_secret_value(SecretId=name, SecretString=json.dumps(payload))
-            desc = secrets.describe_secret(SecretId=name)
-            return desc["ARN"]
-        raise
-
-def create_secrets():
-    print("[Secrets] Creando/actualizando secretos...")
-    db_arn  = upsert_secret(DB_SECRET_NAME, {"username": DB_USER_DEFAULT, "password": DB_PASS_DEFAULT})
-    app_arn = upsert_secret(APP_SECRET_NAME, {"APP_USER": "admin", "APP_PASS": "admin123"})
-    print(f"✓ Secrets OK: {DB_SECRET_NAME}, {APP_SECRET_NAME}")
-    return db_arn, app_arn
-
-
+# ==============================
 # 3. CREAR SECURITY GROUPS
+# ==============================
 
-sg_web_name = 'rrhh-web-sg'
-sg_web_id = None
+# --- SG para servidor web (HTTP 80 abierto a Internet) ---
+NOMBRE_SG_WEB = 'rrhh-web-sg'
+ID_SG_WEB = None
+
 try:
-    response = ec2.create_security_group(
-        GroupName=sg_web_name,
+    # Crear SG para la capa web
+    respuesta = cliente_ec2.create_security_group(
+        GroupName=NOMBRE_SG_WEB,
         Description='SG para servidor web RRHH'
     )
-    sg_web_id = response['GroupId']
-    ec2.authorize_security_group_ingress(
-        GroupId=sg_web_id,
+    ID_SG_WEB = respuesta['GroupId']
+
+    # Permitir tráfico HTTP (80) desde cualquier IP
+    cliente_ec2.authorize_security_group_ingress(
+        GroupId=ID_SG_WEB,
         IpPermissions=[
             {
                 'IpProtocol': 'tcp',
@@ -88,129 +95,155 @@ try:
             }
         ]
     )
-    
 except ClientError as e:
+    # Si el SG ya existe, obtener su ID
     if e.response['Error']['Code'] == 'InvalidGroup.Duplicate':
-        sg_response = ec2.describe_security_groups(GroupNames=[sg_web_name])
-        sg_web_id = sg_response['SecurityGroups'][0]['GroupId']
-        
+        sg_respuesta = cliente_ec2.describe_security_groups(GroupNames=[NOMBRE_SG_WEB])
+        ID_SG_WEB = sg_respuesta['SecurityGroups'][0]['GroupId']
 
+# --- SG para base de datos (MySQL 3306 solo desde SG web) ---
+NOMBRE_SG_BD = 'rrhh-db-sg'
+ID_SG_BD = None
 
-sg_db_name = 'rrhh-db-sg'
-sg_db_id = None
 try:
-    response = ec2.create_security_group(
-        GroupName=sg_db_name,
+    # Crear SG para la capa de base de datos
+    respuesta = cliente_ec2.create_security_group(
+        GroupName=NOMBRE_SG_BD,
         Description='SG para base de datos RRHH'
     )
-    sg_db_id = response['GroupId']
-    ec2.authorize_security_group_ingress(
-        GroupId=sg_db_id,
+    ID_SG_BD = respuesta['GroupId']
+
+    # Permitir tráfico MySQL (3306) solo desde el SG de la web
+    cliente_ec2.authorize_security_group_ingress(
+        GroupId=ID_SG_BD,
         IpPermissions=[
             {
                 'IpProtocol': 'tcp',
                 'FromPort': 3306,
                 'ToPort': 3306,
-                'UserIdGroupPairs': [{'GroupId': sg_web_id}]
+                'UserIdGroupPairs': [{'GroupId': ID_SG_WEB}]
             }
         ]
     )
-    
 except ClientError as e:
+    # Si el SG ya existe, obtener su ID
     if e.response['Error']['Code'] == 'InvalidGroup.Duplicate':
-        sg_response = ec2.describe_security_groups(GroupNames=[sg_db_name])
-        sg_db_id = sg_response['SecurityGroups'][0]['GroupId']
-        print(f"ℹ SG DB ya existe: {sg_db_id}")
+        sg_respuesta = cliente_ec2.describe_security_groups(GroupNames=[NOMBRE_SG_BD])
+        ID_SG_BD = sg_respuesta['SecurityGroups'][0]['GroupId']
+        print(f"ℹ SG BD ya existe: {ID_SG_BD}")
 
-# 4. CREAR RDS MYSQL
+# ==============================
+# 4. CREAR INSTANCIA RDS MYSQL
+# ==============================
 
 try:
-    rds.create_db_instance(
-        DBInstanceIdentifier=DB_NAME,
-        DBInstanceClass='db.t3.micro',
-        Engine='mysql',
-        MasterUsername=DB_USERNAME,
-        MasterUserPassword=DB_PASSWORD,
-        DBName=DB_DATABASE,
-        AllocatedStorage=20,
-        StorageType='gp2',
-        StorageEncrypted=True,
-        VpcSecurityGroupIds=[sg_db_id],
-        BackupRetentionPeriod=7,
-        PubliclyAccessible=False
+    # Crear la instancia RDS MySQL con las credenciales y SG configurados
+    cliente_rds.create_db_instance(
+        DBInstanceIdentifier=ID_INSTANCIA_BD,   
+        DBInstanceClass='db.t3.micro',          
+        Engine='mysql',                         # Motor de base de datos a usar (MySQL en este caso)
+        MasterUsername=USUARIO_BD,             
+        MasterUserPassword=CONTRASENA_BD,       
+        DBName=NOMBRE_BD,                       
+        AllocatedStorage=20,                    # Tamaño del disco de la DB en GB (almacenamiento EBS)
+        StorageType='gp2',                      # Tipo de almacenamiento (SSD de uso general gp2)
+        StorageEncrypted=True,                  # Indica que el almacenamiento estará cifrado en reposo
+        VpcSecurityGroupIds=[ID_SG_BD],         
+        BackupRetentionPeriod=7,                # Cuántos días conservar los backups automáticos
+        PubliclyAccessible=False                # False = la DB no tiene IP pública, solo accesible dentro de la VPC
     )
+
+
     print("RDS creado: esperando disponibilidad...")
-    waiter = rds.get_waiter('db_instance_available')
-    waiter.wait(DBInstanceIdentifier=DB_NAME)
-    
+
+    # Esperar hasta que la instancia esté en estado 'available'
+    waiter = cliente_rds.get_waiter('db_instance_available')
+    waiter.wait(DBInstanceIdentifier=ID_INSTANCIA_BD)
+
 except ClientError as e:
     if e.response['Error']['Code'] == 'DBInstanceAlreadyExists':
-        print(f"ℹ RDS ya existe: {DB_NAME}")
+        print(f"ℹ RDS ya existe: {ID_INSTANCIA_BD}")
+    else:
+        print("Error creando RDS:", e)
+        raise
 
-db_info = rds.describe_db_instances(DBInstanceIdentifier=DB_NAME)
-db_endpoint = db_info['DBInstances'][0]['Endpoint']['Address']
+# Obtener la información de la instancia RDS (endpoint para conectarse)
+info_bd = cliente_rds.describe_db_instances(DBInstanceIdentifier=ID_INSTANCIA_BD)
+ENDPOINT_BD = info_bd['DBInstances'][0]['Endpoint']['Address']
 
+# ==============================
+# 5. CREAR INSTANCIA EC2 + USER DATA
+# ==============================
 
-# 5. CREAR INSTANCIA EC2 Y USERDATA
-
-user_data = f'''#!/bin/bash
+# Script de inicialización (user data) que se ejecuta al arrancar la EC2
+# Instala Apache + PHP, sincroniza la web desde S3, crea el .env, inicializa la BD, etc.
+datos_usuario = f'''#!/bin/bash
 yum update -y
 yum install -y httpd php php-cli php-fpm php-common php-mysqlnd mariadb105 awscli
 
+# Habilitar y arrancar servicios web y PHP-FPM
 systemctl enable --now httpd
 systemctl enable --now php-fpm
 
-echo '<FilesMatch \.php$>
+# Configurar Apache para usar php-fpm a través de socket Unix
+echo '<FilesMatch \\\\.php$>
   SetHandler "proxy:unix:/run/php-fpm/www.sock|fcgi://localhost/"
 </FilesMatch>' | tee /etc/httpd/conf.d/php-fpm.conf
 
+# Limpiar carpeta web y descargar versión actual desde S3
 rm -rf /var/www/html/*
-aws s3 sync s3://{BUCKET_NAME}/webapp/ /var/www/html/
+aws s3 sync s3://{NOMBRE_BUCKET}/webapp/ /var/www/html/
 
+# Copiar script de inicialización de base de datos si existe
 if [ -f /var/www/html/init_db.sql ]; then
   cp /var/www/html/init_db.sql /var/www/
 fi
 
+# Crear archivo .env con credenciales y configuración solo si no existe
 if [ ! -f /var/www/.env ]; then
 cat > /var/www/.env << 'EOT'
-DB_HOST={db_endpoint}
-DB_NAME={DB_DATABASE}
-
-# Obtener secretos (DB y APP) desde Secrets Manager (sin hardcode en AMI)
-DB_JSON=$(aws secretsmanager get-secret-value --secret-id {DB_SECRET_NAME} --query SecretString --output text)
-APP_JSON=$(aws secretsmanager get-secret-value --secret-id {APP_SECRET_NAME} --query SecretString --output text)
-
+DB_HOST={ENDPOINT_BD}
+DB_NAME={NOMBRE_BD}
+DB_USER={USUARIO_BD}
+DB_PASS={CONTRASENA_BD}
+APP_USER={USUARIO_APP}
+APP_PASS={CONTRASENA_APP}
 EOT
 fi
 
+# Proteger .env y dar permisos adecuados a la carpeta web
 chown apache:apache /var/www/.env
 chmod 600 /var/www/.env
 
 chown -R apache:apache /var/www/html
 chmod -R 755 /var/www/html
 
+# Ejecutar script SQL de inicialización contra la base de datos RDS
 if [ -f /var/www/init_db.sql ]; then
-  mysql -h {db_endpoint} -u {DB_USERNAME} -p{DB_PASSWORD} {DB_DATABASE} < /var/www/init_db.sql
+  mysql -h {ENDPOINT_BD} -u {USUARIO_BD} -p{CONTRASENA_BD} {NOMBRE_BD} < /var/www/init_db.sql
 fi
 
+# Reiniciar servicios para aplicar todos los cambios
 systemctl restart httpd php-fpm
 '''
 
-response = ec2.run_instances(
-    ImageId=IMAGE_ID,
+# Lanzar la instancia EC2 con el user-data anterior
+respuesta_ec2 = cliente_ec2.run_instances(
+    ImageId=ID_IMAGEN,
     InstanceType='t2.micro',
     MinCount=1,
     MaxCount=1,
     IamInstanceProfile={'Name': 'LabInstanceProfile'},
-    SecurityGroupIds=[sg_web_id],
-    UserData=user_data,
-    BlockDeviceMappings=[
-        {'DeviceName': '/dev/xvda', 'Ebs': {'VolumeSize': 8, 'VolumeType': 'gp2', 'Encrypted': True}}
-    ]
+    SecurityGroupIds=[ID_SG_WEB],
+    UserData=datos_usuario
 )
-instance_id = response['Instances'][0]['InstanceId']
-ec2.create_tags(
-    Resources=[instance_id],
+
+# ID de la instancia EC2 recién creada
+ID_INSTANCIA = respuesta_ec2['Instances'][0]['InstanceId']
+
+# Etiquetas para identificar la instancia y la clasificación de datos
+cliente_ec2.create_tags(
+    Resources=[ID_INSTANCIA],
     Tags=[
         {'Key': 'Name', 'Value': 'app-rrhh'},
         {'Key': 'Application', 'Value': 'RRHH'},
@@ -218,15 +251,18 @@ ec2.create_tags(
     ]
 )
 
-# 4) Secrets
-db_secret_arn, app_secret_arn = create_secrets()
+# ==============================
+# 6. OBTENER IP PÚBLICA Y MOSTRAR URL
+# ==============================
 
-print("\nObteniendo IP pública:")
+print("\nObteniendo IP pública...")
+# Esperar unos segundos a que AWS asigne la IP pública
 time.sleep(15)
-instance_info = ec2.describe_instances(InstanceIds=[instance_id])
-public_ip = instance_info['Reservations'][0]['Instances'][0].get('PublicIpAddress')
 
+# Consultar detalles de la instancia para obtener la IP pública
+info_instancia = cliente_ec2.describe_instances(InstanceIds=[ID_INSTANCIA])
+IP_PUBLICA = info_instancia['Reservations'][0]['Instances'][0].get('PublicIpAddress')
 
-print(f"Acceso web: http://{public_ip}/login.php")
+# Mostrar URL de acceso a la aplicación web
+print(f"Acceso web: http://{IP_PUBLICA}/login.php")
 print("====================================")
-print(f"- Secrets: {DB_SECRET_NAME} | {APP_SECRET_NAME}")
