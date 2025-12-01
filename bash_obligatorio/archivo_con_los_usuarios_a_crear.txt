@@ -3,3 +3,14 @@ pepe:Este es mi amigo pepe:/home/jose:SI:/bin/bash
 papanatas:Este es un usuario trucho:/trucho:NO:/bin/sh
 elmaligno::::/bin/el_maligno
 
+juanwp:Empleado senior:/home/juanp:SI:/bin/bash
+analo:Soporte nivel 1:/home/analo:SI:/bin/bash
+carlitos:Usuario sin home propio::NO:/bin/sh
+maru:Jefa de RRHH:/home/maru_rrhh:SI:/bin/bash
+pepo:Consultor externo:/home/pepo_cons:NO:/bin/bash
+
+luigi::/home/luigi_dev:SI:/bin/bash
+sofiadev:Desarrolladora backend:/home/sofiadev:SI:/bin/zsh
+martin:Tester QA::NO:/bin/bash
+flor:Sin shell definido:/home/flor_app:SI:
+tomi::/home/tomi:SI:/bin/sh
