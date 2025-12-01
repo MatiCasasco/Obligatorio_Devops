@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # ==========================
-# 1. VARIABLES Y FLAGS
+# 1. VARIABLES Y PARAMETROS
 # ==========================
 
-flag_i=false          # Flag -i: mostrar información detallada de los usuarios procesados
-flag_c=false          # Flag -c: indicar que se debe asignar contraseña a los usuarios
+param_i=false          # Param -i: mostrar información detallada de los usuarios procesados
+param_c=false          # Param -c: indicar que se debe asignar contraseña a los usuarios
 password=""           # Contraseña que se usará si se pasa -c
 archivo=""            # Nombre del archivo de entrada con los datos de usuarios
 contador=0            # Contador de usuarios creados
@@ -56,10 +56,10 @@ mostrar_datos() {
 while [ $# -gt 0 ]; do
     case "$1" in
         -i)
-            flag_i=true          # Activa modo información
+            param_i=true          # Activa modo información
             ;;
         -c)
-            flag_c=true          # Indica que se usará una contraseña para los usuarios
+            param_c=true          # Indica que se usará una contraseña para los usuarios
             shift                # Avanza al argumento siguiente (la contraseña)
             if [ -z "$1" ]; then
                 echo "Error: falta contraseña después de -c" >&2
@@ -150,13 +150,13 @@ while read -r linea; do
             usermod -s "$shell" "$usuario" &>/dev/null
         fi
         
-        # Mostrar datos si está activado el flag -i
-        if [ "$flag_i" = true ]; then
+        # Mostrar datos si está activado el param i
+        if [ "$param_i" = true ]; then
             mostrar_datos "$usuario" "$comentario" "$home" "$crear" "$shell"
         fi
 
-        # Asignar contraseña si está activado el flag -c
-        if [ "$flag_c" = true ] && [ -n "$password" ]; then
+        # Asignar contraseña si está activado el param -c
+        if [ "$param_c" = true ] && [ -n "$password" ]; then
             echo "$password" | passwd --stdin "$usuario" &>/dev/null
         fi
 
@@ -183,14 +183,14 @@ while read -r linea; do
             useradd -c "$comentario" -d "$home" -s "$shell" -m "$usuario"   # -m crea el home
             
             # Asignar contraseña si corresponde
-            if [ "$flag_c" = true ] && [ -n "$password" ]; then
+            if [ "$param_c" = true ] && [ -n "$password" ]; then
                 echo "$password" | passwd --stdin "$usuario" &>/dev/null
             fi
 
             # Verificar creación exitosa consultando /etc/passwd
             if grep -q "^$usuario:" /etc/passwd; then
                 echo "Usuario $usuario creado correctamente."
-                if [ "$flag_i" = true ]; then
+                if [ "$param_i" = true ]; then
                     echo -e "Usuario $usuario creado con éxito con datos indicados:"
                     mostrar_datos "$usuario" "$comentario" "$home" "$crear" "$shell"
                 fi
@@ -216,13 +216,13 @@ while read -r linea; do
             useradd -c "$comentario" -d "$home" -s "$shell" -M "$usuario"   # -M no crea directorio home
             
             # Asignar contraseña si corresponde
-            if [ "$flag_c" = true ] && [ -n "$password" ]; then
+            if [ "$param_c" = true ] && [ -n "$password" ]; then
                 echo "$password" | passwd --stdin "$usuario" &>/dev/null
             fi
 
             # Verificar creación exitosa
             if grep -q "^$usuario:" /etc/passwd; then
-                if [ "$flag_i" = true ]; then
+                if [ "$param_i" = true ]; then
                     echo "Usuario $usuario se ha creado correctamente."
                     echo -e "Usuario $usuario creado con éxito con datos indicados:"
                     mostrar_datos "$usuario" "$comentario" "$home" "$crear" "$shell" "$home_vacio"
