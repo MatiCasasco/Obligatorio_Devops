@@ -8,17 +8,13 @@ from botocore.exceptions import ClientError
 # ==============================
 
 NOMBRE_BUCKET = 'rrhh-obligatorio-web'
-
 RUTA_LOCAL = './Archivos_de_Pagina_Web'
-
 PREFIJO_S3 = 'webapp/'
-
 ID_INSTANCIA_BD = 'rrhhapp'
 
 # Credenciales de la base de datos (usuario y contraseña leída de archivo)
 USUARIO_BD = 'admin'
 CONTRASENA_BD = open("./password_db.txt", "r").read().strip()
-
 NOMBRE_BD = 'demo_db'
 
 # Credenciales de la aplicación (usuario fijo, contraseña desde archivo)
@@ -48,24 +44,25 @@ if not os.path.isdir(RUTA_LOCAL):
 # Crear el bucket S3 (si no existe ya)
 try:
     cliente_s3.create_bucket(Bucket=NOMBRE_BUCKET)
-    print(f"Bucket creado: {NOMBRE_BUCKET}")
+    print(f"\nBucket creado: {NOMBRE_BUCKET}")
     print("====================================")
 except Exception as e:
     # Si el bucket ya existe en tu cuenta, continuar
     if "BucketAlreadyOwnedByYou" in str(e):
-        print("ℹ Bucket ya existe.")
+        print("\n Bucket ya existe.")
 
 # Recorrer recursivamente la carpeta local y subir todos los archivos al bucket
-for carpeta, subcarpetas, archivos in os.walk(RUTA_LOCAL):
-    for nombre_archivo in archivos:
-        ruta_local_archivo = os.path.join(carpeta, nombre_archivo)
-        # Clave S3 relativa a la carpeta base, con barras normalizadas
-        clave_s3 = os.path.relpath(ruta_local_archivo, RUTA_LOCAL).replace("\\", "/")
-        ruta_s3 = f"{PREFIJO_S3}{clave_s3}"
-        print(f"Subiendo: {ruta_local_archivo} -> s3://{NOMBRE_BUCKET}/{ruta_s3}")
-        cliente_s3.upload_file(ruta_local_archivo, NOMBRE_BUCKET, ruta_s3)
+for carpeta, subcarpetas, archivos in os.walk(RUTA_LOCAL):                       # Recorrer recursivamente la carpeta base
+    for nombre_archivo in archivos:                                            # Iterar sobre cada archivo en la carpeta actual
+        ruta_local_archivo = os.path.join(carpeta, nombre_archivo)             # Obtener la ruta completa local del archivo
+        clave_s3 = os.path.relpath(ruta_local_archivo, RUTA_LOCAL).replace("\\", "/")  # Ruta relativa normalizada para S3
+        ruta_s3 = f"{PREFIJO_S3}{clave_s3}"                                   # Construir clave completa dentro del bucket S3
+        print(f"Subiendo: {ruta_local_archivo} -> s3://{NOMBRE_BUCKET}/{ruta_s3}")   # Mostrar progreso de subida
+        cliente_s3.upload_file(ruta_local_archivo, NOMBRE_BUCKET, ruta_s3)     # Subir archivo a S3 con clave definida
+
+
 print("====================================")
-print("✓ Archivos web subidos a S3 correctamente.\n")
+print("\n Archivos web subidos a S3 correctamente.\n")
 
 # ==============================
 # 3. CREAR SECURITY GROUPS
@@ -95,11 +92,16 @@ try:
             }
         ]
     )
+    print(f"\nSecurity Group web '{NOMBRE_SG_WEB}' creado con ID: {ID_SG_WEB}")
+
 except ClientError as e:
     # Si el SG ya existe, obtener su ID
     if e.response['Error']['Code'] == 'InvalidGroup.Duplicate':
         sg_respuesta = cliente_ec2.describe_security_groups(GroupNames=[NOMBRE_SG_WEB])
         ID_SG_WEB = sg_respuesta['SecurityGroups'][0]['GroupId']
+        print(f"\n Security Group web '{NOMBRE_SG_WEB}' ya existe con ID: {ID_SG_WEB}")
+
+
 
 # --- SG para base de datos (MySQL 3306 solo desde SG web) ---
 NOMBRE_SG_BD = 'rrhh-db-sg'
@@ -125,12 +127,14 @@ try:
             }
         ]
     )
+    print(f"\nSecurity Group BD '{NOMBRE_SG_BD}' creado con ID: {ID_SG_BD}")
+
 except ClientError as e:
     # Si el SG ya existe, obtener su ID
     if e.response['Error']['Code'] == 'InvalidGroup.Duplicate':
-        sg_respuesta = cliente_ec2.describe_security_groups(GroupNames=[NOMBRE_SG_BD])
-        ID_SG_BD = sg_respuesta['SecurityGroups'][0]['GroupId']
-        print(f"ℹ SG BD ya existe: {ID_SG_BD}")
+        sg_respuesta = cliente_ec2.describe_security_groups(GroupNames=[NOMBRE_SG_BD])   # Consultar detalles del Security Group existente por su nombre
+        ID_SG_BD = sg_respuesta['SecurityGroups'][0]['GroupId']  # Extraer el ID del primer Security Group encontrado con ese nombre
+        print(f"\nSG BD ya existe: {ID_SG_BD}")
 
 # ==============================
 # 4. CREAR INSTANCIA RDS MYSQL
@@ -154,22 +158,23 @@ try:
     )
 
 
-    print("RDS creado: esperando disponibilidad...")
+    print("\nRDS creado: esperando disponibilidad...")
 
     # Esperar hasta que la instancia esté en estado 'available'
-    waiter = cliente_rds.get_waiter('db_instance_available')
-    waiter.wait(DBInstanceIdentifier=ID_INSTANCIA_BD)
+    waiter = cliente_rds.get_waiter('db_instance_available') # Crear un waiter para esperar a que la instancia RDS esté disponible
+    waiter.wait(DBInstanceIdentifier=ID_INSTANCIA_BD) # Bloquear la ejecución hasta que la instancia esté en estado 'available'
+    print("\nRDS disponible y listo para usar.")
 
 except ClientError as e:
     if e.response['Error']['Code'] == 'DBInstanceAlreadyExists':
-        print(f"ℹ RDS ya existe: {ID_INSTANCIA_BD}")
+        print(f"\n RDS ya existe: {ID_INSTANCIA_BD}")
     else:
         print("Error creando RDS:", e)
         raise
 
 # Obtener la información de la instancia RDS (endpoint para conectarse)
 info_bd = cliente_rds.describe_db_instances(DBInstanceIdentifier=ID_INSTANCIA_BD)
-ENDPOINT_BD = info_bd['DBInstances'][0]['Endpoint']['Address']
+ENDPOINT_BD = info_bd['DBInstances'][0]['Endpoint']['Address'] #Guarda en una variable la direccion de la base de datos.
 
 # ==============================
 # 5. CREAR INSTANCIA EC2 + USER DATA
@@ -240,7 +245,7 @@ respuesta_ec2 = cliente_ec2.run_instances(
 
 # ID de la instancia EC2 recién creada
 ID_INSTANCIA = respuesta_ec2['Instances'][0]['InstanceId']
-
+print(f"\nInstancia EC2 creada con ID: {ID_INSTANCIA}")
 # Etiquetas para identificar la instancia y la clasificación de datos
 cliente_ec2.create_tags(
     Resources=[ID_INSTANCIA],
@@ -260,8 +265,9 @@ print("\nObteniendo IP pública...")
 time.sleep(15)
 
 # Consultar detalles de la instancia para obtener la IP pública
-info_instancia = cliente_ec2.describe_instances(InstanceIds=[ID_INSTANCIA])
-IP_PUBLICA = info_instancia['Reservations'][0]['Instances'][0].get('PublicIpAddress')
+info_instancia = cliente_ec2.describe_instances(InstanceIds=[ID_INSTANCIA])  # Solicita información detallada de la instancia EC2 con el ID dado
+IP_PUBLICA = info_instancia['Reservations'][0]['Instances'][0].get('PublicIpAddress')  # Extrae la dirección IP pública de la instancia si existe
+
 
 # Mostrar URL de acceso a la aplicación web
 print(f"Acceso web: http://{IP_PUBLICA}/login.php")
