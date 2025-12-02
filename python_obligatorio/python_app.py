@@ -3,9 +3,9 @@ import os
 import time
 from botocore.exceptions import ClientError
 
-# ==============================
-# 1. CONFIGURACIÓN INICIAL
-# ==============================
+# ===================================================================================
+# 1.                            CONFIGURACIÓN INICIAL
+# ===================================================================================
 
 NOMBRE_BUCKET = 'rrhh-obligatorio-web'
 RUTA_LOCAL = './Archivos_de_Pagina_Web'
@@ -29,12 +29,12 @@ cliente_ec2 = boto3.client('ec2')
 cliente_rds = boto3.client('rds')
 cliente_s3 = boto3.client('s3')
 
-# ==============================
-# 2. SUBIR ARCHIVOS WEB A S3
-# ==============================
+# ===================================================================================
+# 2.                            SUBIR ARCHIVOS WEB A S3
+# ===================================================================================
 
 print("\nSubiendo archivos web a S3...")
-print("====================================")
+print("========================================")
 
 # Verificar que la carpeta local existe
 if not os.path.isdir(RUTA_LOCAL):
@@ -45,7 +45,7 @@ if not os.path.isdir(RUTA_LOCAL):
 try:
     cliente_s3.create_bucket(Bucket=NOMBRE_BUCKET)
     print(f"\nBucket creado: {NOMBRE_BUCKET}")
-    print("====================================")
+    print("======================================")
 except Exception as e:
     # Si el bucket ya existe en tu cuenta, continuar
     if "BucketAlreadyOwnedByYou" in str(e):
@@ -61,12 +61,12 @@ for carpeta, subcarpetas, archivos in os.walk(RUTA_LOCAL):                      
         cliente_s3.upload_file(ruta_local_archivo, NOMBRE_BUCKET, ruta_s3)     # Subir archivo a S3 con clave definida
 
 
-print("====================================")
+print("===============================================")
 print("\n Archivos web subidos a S3 correctamente.\n")
 
-# ==============================
-# 3. CREAR SECURITY GROUPS
-# ==============================
+# ===================================================================================
+# 3.                            CREAR SECURITY GROUPS
+# ===================================================================================
 
 # --- SG para servidor web (HTTP 80 abierto a Internet) ---
 NOMBRE_SG_WEB = 'rrhh-web-sg'
@@ -136,9 +136,9 @@ except ClientError as e:
         ID_SG_BD = sg_respuesta['SecurityGroups'][0]['GroupId']  # Extraer el ID del primer Security Group encontrado con ese nombre
         print(f"\nSG BD ya existe: {ID_SG_BD}")
 
-# ==============================
-# 4. CREAR INSTANCIA RDS MYSQL
-# ==============================
+# ===================================================================================
+# 4.                            CREAR INSTANCIA RDS MYSQL
+# ===================================================================================
 
 try:
     # Crear la instancia RDS MySQL con las credenciales y SG configurados
@@ -176,9 +176,9 @@ except ClientError as e:
 info_bd = cliente_rds.describe_db_instances(DBInstanceIdentifier=ID_INSTANCIA_BD)
 ENDPOINT_BD = info_bd['DBInstances'][0]['Endpoint']['Address'] #Guarda en una variable la direccion de la base de datos.
 
-# ==============================
-# 5. CREAR INSTANCIA EC2 + USER DATA
-# ==============================
+# ===================================================================================
+# 5.                           CREAR INSTANCIA EC2 + USER DATA
+# ===================================================================================
 
 # Script de inicialización (user data) que se ejecuta al arrancar la EC2
 # Instala Apache + PHP, sincroniza la web desde S3, crea el .env, inicializa la BD, etc.
@@ -256,9 +256,9 @@ cliente_ec2.create_tags(
     ]
 )
 
-# ==============================
-# 6. OBTENER IP PÚBLICA Y MOSTRAR URL
-# ==============================
+# ===================================================================================
+# 6.                       OBTENER IP PÚBLICA Y MOSTRAR URL
+# ===================================================================================
 
 print("\nObteniendo IP pública...")
 # Esperar unos segundos a que AWS asigne la IP pública
@@ -271,4 +271,4 @@ IP_PUBLICA = info_instancia['Reservations'][0]['Instances'][0].get('PublicIpAddr
 
 # Mostrar URL de acceso a la aplicación web
 print(f"Acceso web: http://{IP_PUBLICA}/login.php")
-print("====================================")
+print("============================================")
