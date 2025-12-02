@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 NOMBRE_BUCKET = input("Ingrese el nombre del bucket S3: ").strip()
 RUTA_LOCAL = './Archivos_de_Pagina_Web'
 PREFIJO_S3 = 'webapp/'
-ID_INSTANCIA_BD = 'rrhhapp'
+ID_INSTANCIA_BD = input("Ingrese el nombre de la instancia de base de datos RDS: ").strip()
 
 # Credenciales de la base de datos (usuario y contraseña leída de archivo)
 USUARIO_BD = 'admin'
