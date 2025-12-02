@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 # 1.                            CONFIGURACIÓN INICIAL
 # ===================================================================================
 
-NOMBRE_BUCKET = 'rrhh-obligatorio-web'
+NOMBRE_BUCKET = input("Ingrese el nombre del bucket S3: ").strip()
 RUTA_LOCAL = './Archivos_de_Pagina_Web'
 PREFIJO_S3 = 'webapp/'
 ID_INSTANCIA_BD = 'rrhhapp'
@@ -49,7 +49,7 @@ try:
 except Exception as e:
     # Si el bucket ya existe en tu cuenta, continuar
     if "BucketAlreadyOwnedByYou" in str(e):
-        print("\n Bucket ya existe.")
+        print("\nBucket ya existe.")
 
 # Recorrer recursivamente la carpeta local y subir todos los archivos al bucket
 for carpeta, subcarpetas, archivos in os.walk(RUTA_LOCAL):                       # Recorrer recursivamente la carpeta base
@@ -62,7 +62,7 @@ for carpeta, subcarpetas, archivos in os.walk(RUTA_LOCAL):                      
 
 
 print("===============================================")
-print("\n Archivos web subidos a S3 correctamente.\n")
+print("\nArchivos web subidos a S3 correctamente.\n")
 
 # ===================================================================================
 # 3.                            CREAR SECURITY GROUPS
@@ -99,7 +99,7 @@ except ClientError as e:
     if e.response['Error']['Code'] == 'InvalidGroup.Duplicate':
         sg_respuesta = cliente_ec2.describe_security_groups(GroupNames=[NOMBRE_SG_WEB])
         ID_SG_WEB = sg_respuesta['SecurityGroups'][0]['GroupId']
-        print(f"\n Security Group web '{NOMBRE_SG_WEB}' ya existe con ID: {ID_SG_WEB}")
+        print(f"\nSecurity Group web '{NOMBRE_SG_WEB}' ya existe con ID: {ID_SG_WEB}")
 
 
 
@@ -167,7 +167,7 @@ try:
 
 except ClientError as e:
     if e.response['Error']['Code'] == 'DBInstanceAlreadyExists':
-        print(f"\n RDS ya existe: {ID_INSTANCIA_BD}")
+        print(f"\nRDS ya existe: {ID_INSTANCIA_BD}")
     else:
         print("Error creando RDS:", e)
         raise
