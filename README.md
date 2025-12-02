@@ -81,14 +81,16 @@ python3 deploy_rrhh.py
 
 ## Estructura del Repositorio
 ```
-├── ejercicio_bash
-  ├── crea_usuarios.sh
-  ├── usuario_lista.txt
-├── ejercicio_python
-  ├── deploy_rrhh.py
-├── IMAGES
-├── README.md
+├── bash_obligatorio
+│   ├── archivo_con_los_usuarios_a_crear.txt
+│   └── ej1_crea_usuarios.sh
+├── python_obligatorio
+│   ├── Archivos_de_Pagina_Web/
+│   ├── password_app.txt
+│   ├── password_db.txt
+│   └── python_app.py
 ├── LICENSE
+└── README.md
 ```
 
 ## Autores
